@@ -12,7 +12,7 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
- 
+    "emitDeclarationOnly": true, // <<< THIS IS THE ADDED LINE
 
     /* Linting */
     "strict": true,
