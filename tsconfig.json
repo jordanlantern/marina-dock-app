@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    // These are the options you had in tsconfig.app.json,
+    // including the baseUrl and paths we added:
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["./src/*"]
+    }
+  },
+  "include": ["src"], // This tells TypeScript to include your app's source files
+  "references": [
+    // You can keep the reference to tsconfig.node.json as Vite tooling might use it
+    { "path": "./tsconfig.node.json" }
+    // We are moving the app-specific settings here, so the reference
+    // to tsconfig.app.json might no longer be needed in this "references" array,
+    // or tsconfig.app.json could be simplified or removed later if it becomes redundant.
+    // For now, let's try with just the tsconfig.node.json reference.
+  ]
+}
