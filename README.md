@@ -52,3 +52,4 @@ export default tseslint.config({
   },
 })
 ```
+how is the reading
