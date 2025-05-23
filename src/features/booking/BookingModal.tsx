@@ -304,24 +304,37 @@ const BookingModal: React.FC<BookingModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(openState) => { if (!openState) { handleCloseDialog(); } }}>
-      {/* MODIFICATION: Added max-h-[85vh] (or 90vh) and overflow-y-auto for scrollability */}
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+      {/*
+        MODIFICATIONS FOR MOBILE:
+        - Explicit max-width for very small screens (w-[95vw])
+        - max-h-[90vh] for more height allowance but still preventing full screen blockage
+        - flex flex-col for DialogContent to allow inner form to scroll if needed
+      */}
+      <DialogContent className="sm:max-w-lg w-[95vw] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>{dialogDescriptionText}</DialogDescription>
         </DialogHeader>
 
-        <form id="booking-form" onSubmit={handleSubmit} className="space-y-4 py-4">
+        {/*
+          MODIFICATION FOR MOBILE:
+          - Added overflow-y-auto and flex-1 to the form itself
+            so if the form content is taller than DialogContent, the form scrolls,
+            not just the whole DialogContent (which might cut off Popovers).
+        */}
+        <form id="booking-form" onSubmit={handleSubmit} className="space-y-4 py-2 overflow-y-auto flex-1">
+          {/* Date Pickers */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="startDate-btn">Start Date</Label>
-              <Popover><PopoverTrigger asChild>
-                <Button id="startDate-btn" variant="outline" className={cn("w-full justify-start text-left font-normal mt-1", !formData.startDate && "text-muted-foreground")} disabled={isViewOrEditMode && !isEditing}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />{formData.startDate && isValid(formData.startDate) ? format(formData.startDate, "PPP") : <span>Pick a date</span>}
-                </Button></PopoverTrigger>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button id="startDate-btn" variant="outline" className={cn("w-full justify-start text-left font-normal mt-1", !formData.startDate && "text-muted-foreground")} disabled={isViewOrEditMode && !isEditing}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />{formData.startDate && isValid(formData.startDate) ? format(formData.startDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
                 {(!isViewOrEditMode || isEditing) &&
-                  // MODIFICATION: Added z-[60] to PopoverContent
-                  <PopoverContent className="w-auto p-0 z-[60]" align="start">
+                  <PopoverContent className="w-auto p-0 z-[60]" align="start"> {/* Keep z-index */}
                     <Calendar mode="single" selected={formData.startDate} onSelect={(date) => handleDateChange('startDate', date)} initialFocus defaultMonth={currentCalendarDefaultMonth} />
                   </PopoverContent>
                 }
@@ -329,13 +342,14 @@ const BookingModal: React.FC<BookingModalProps> = ({
             </div>
             <div>
               <Label htmlFor="endDate-btn">End Date</Label>
-              <Popover><PopoverTrigger asChild>
-                <Button id="endDate-btn" variant="outline" className={cn("w-full justify-start text-left font-normal mt-1", !formData.endDate && "text-muted-foreground")} disabled={isViewOrEditMode && !isEditing}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />{formData.endDate && isValid(formData.endDate) ? format(formData.endDate, "PPP") : <span>Pick a date</span>}
-                </Button></PopoverTrigger>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button id="endDate-btn" variant="outline" className={cn("w-full justify-start text-left font-normal mt-1", !formData.endDate && "text-muted-foreground")} disabled={isViewOrEditMode && !isEditing}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />{formData.endDate && isValid(formData.endDate) ? format(formData.endDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
                 {(!isViewOrEditMode || isEditing) &&
-                  // MODIFICATION: Added z-[60] to PopoverContent
-                  <PopoverContent className="w-auto p-0 z-[60]" align="start">
+                  <PopoverContent className="w-auto p-0 z-[60]" align="start"> {/* Keep z-index */}
                     <Calendar mode="single" selected={formData.endDate} onSelect={(date) => handleDateChange('endDate', date)} disabled={(date) => formData.startDate && isValid(formData.startDate) ? isBefore(date, formData.startDate) : false} initialFocus defaultMonth={formData.startDate || currentCalendarDefaultMonth} />
                   </PopoverContent>
                 }
@@ -343,6 +357,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
             </div>
           </div>
 
+          {/* Other Form Fields (Guest Name, Boat Type, etc.) remain the same */}
           <div><Label htmlFor="guestName">Guest Name</Label><Input id="guestName" name="guestName" value={formData.guestName} onChange={handleChange} className="mt-1" disabled={isViewOrEditMode && !isEditing} /></div>
           <div><Label htmlFor="boatType">Boat Type</Label><Input id="boatType" name="boatType" value={formData.boatType} onChange={handleChange} className="mt-1" disabled={isViewOrEditMode && !isEditing} /></div>
           <div className="grid grid-cols-2 gap-4">
@@ -365,36 +380,38 @@ const BookingModal: React.FC<BookingModalProps> = ({
 
         {submitError && (<p className="text-sm text-red-500 p-2 bg-red-50 rounded-md my-2">{submitError}</p>)}
 
-        <DialogFooter>
-          {isViewOrEditMode ? (
-            isEditing ? (
-              <>
-                <Button type="button" variant="outline" onClick={handleCancelEditClick} disabled={isSubmitting}>Cancel Edit</Button>
-                <Button type="submit" form="booking-form" disabled={isSubmitting}>
-                  {isSubmitting ? 'Saving Changes...' : 'Save Changes'}
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button type="button" variant="destructive" onClick={handleCancelReservation} disabled={isSubmitting} className="mr-auto">
-                  Cancel Reservation
-                </Button>
-                <Button type="button" variant="outline" onClick={handleCloseDialog} className="ml-2">Close</Button>
-                <Button type="button" onClick={(e) => handleEditClick(e)}>Edit Reservation</Button>
-              </>
-            )
-          ) : (
-            <>
-              <Button type="button" variant="outline" onClick={handleCloseDialog} disabled={isSubmitting}>Cancel</Button>
-              <Button type="submit" form="booking-form" disabled={isSubmitting}>
-                {isSubmitting ? 'Saving...' : 'Save Reservation'}
-              </Button>
-            </>
-          )}
-        </DialogFooter>
+        {/* DialogFooter remains the same */}
+     <DialogFooter>
+  {isViewOrEditMode ? (
+    isEditing ? (
+      <>
+        <Button type="button" variant="outline" onClick={handleCancelEditClick} disabled={isSubmitting}>Cancel Edit</Button>
+        <Button type="submit" form="booking-form" disabled={isSubmitting}>
+          {isSubmitting ? 'Saving Changes...' : 'Save Changes'}
+        </Button>
+      </>
+    ) : (
+      <>
+        <Button type="button" variant="destructive" onClick={handleCancelReservation} disabled={isSubmitting} className="mr-auto">
+          Cancel Reservation
+        </Button>
+        <Button type="button" variant="outline" onClick={handleCloseDialog} className="ml-2">Close</Button>
+        <Button type="button" onClick={(e) => handleEditClick(e)}>Edit Reservation</Button>
+      </>
+    )
+  ) : (
+    <>
+      <Button type="button" variant="outline" onClick={handleCloseDialog} disabled={isSubmitting}>Cancel</Button>
+      <Button type="submit" form="booking-form" disabled={isSubmitting}>
+        {isSubmitting ? 'Saving...' : 'Save Reservation'}
+      </Button>
+    </>
+  )}
+</DialogFooter>
       </DialogContent>
     </Dialog>
   );
 };
 
 export default BookingModal;
+//hello there 
