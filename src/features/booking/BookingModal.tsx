@@ -310,7 +310,24 @@ const BookingModal: React.FC<BookingModalProps> = ({
         - max-h-[90vh] for more height allowance but still preventing full screen blockage
         - flex flex-col for DialogContent to allow inner form to scroll if needed
       */}
-      <DialogContent className="sm:max-w-lg w-[95vw] max-h-[90vh] flex flex-col">
+      <DialogContent
+        className="sm:max-w-lg w-[95vw] max-h-[90vh] flex flex-col"
+        onPointerDownOutside={(event) => {
+          const target = event.target as HTMLElement;
+          // Check if the target is within a PopoverTrigger or PopoverContent
+          // Radix UI PopoverTrigger often has 'data-state' attribute that changes
+          // Radix UI PopoverContent is usually portalled and might have specific data attributes
+          if (target.closest('[aria-haspopup="dialog"]')) { // This targets the popover trigger buttons for the calendar
+            event.preventDefault();
+          }
+        }}
+        onInteractOutside={(event) => {
+          const target = event.target as HTMLElement;
+          if (target.closest('[aria-haspopup="dialog"]')) { // Consistent check
+            event.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>{dialogDescriptionText}</DialogDescription>
