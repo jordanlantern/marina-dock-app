@@ -18,15 +18,15 @@ import { CalendarIcon } from 'lucide-react';
 import { format, addDays, isValid, isBefore, parseISO, eachDayOfInterval } from 'date-fns';
 import { cn } from '~/lib/utils';
 import { supabase } from '~/lib/supabaseClient';
-import type { Reservation } from '../calendar/MarinaCalendar'; // Assuming Reservation is exported
+import type { Reservation } from '../calendar/MarinaCalendar';
 
 interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedDockForNewBooking: { date: Date; dockId: string } | null;
   existingReservation: Reservation | null;
-  onBookingSuccess: () => void; 
-  allReservations: Reservation[]; 
+  onBookingSuccess: () => void;
+  allReservations: Reservation[];
 }
 
 const createFormState = (initialDateContext?: Date | null, reservation?: Reservation | null) => {
@@ -59,9 +59,9 @@ const normalizeDateToMidnight = (date: Date): Date => {
 };
 
 const getReservationOnDateExcludingCurrent = (
-  targetDate: Date, 
-  dockId: string, 
-  reservations: Reservation[], 
+  targetDate: Date,
+  dockId: string,
+  reservations: Reservation[],
   excludeReservationId?: number | string | null
 ): Reservation | undefined => {
   const normalizedTarget = normalizeDateToMidnight(targetDate).getTime();
@@ -77,34 +77,37 @@ const getReservationOnDateExcludingCurrent = (
   return undefined;
 };
 
-const BookingModal: React.FC<BookingModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  selectedDockForNewBooking, 
-  existingReservation, 
+const BookingModal: React.FC<BookingModalProps> = ({
+  isOpen,
+  onClose,
+  selectedDockForNewBooking,
+  existingReservation,
   onBookingSuccess,
-  allReservations 
+  allReservations
 }) => {
-  const [formData, setFormData] = useState(() => 
+  const [formData, setFormData] = useState(() =>
     createFormState(selectedDockForNewBooking?.date, existingReservation)
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false); 
+  const [isEditing, setIsEditing] = useState(false);
 
-  const isViewOrEditMode = !!existingReservation; 
+  const isViewOrEditMode = !!existingReservation;
 
   useEffect(() => {
+    console.log("Modal isOpen:", isOpen, "ExistingRes:", existingReservation, "NewBookingCtx:", selectedDockForNewBooking);
     if (isOpen) {
       if (existingReservation) {
+        console.log("Setting form for existing reservation:", existingReservation);
         setFormData(createFormState(null, existingReservation));
-        setIsEditing(false); 
+        setIsEditing(false);
       } else if (selectedDockForNewBooking) {
+        console.log("Setting form for new booking:", selectedDockForNewBooking);
         setFormData(createFormState(selectedDockForNewBooking.date, null));
-        setIsEditing(false); 
+        setIsEditing(false);
       }
     }
-    setSubmitError(null); 
+    setSubmitError(null);
   }, [isOpen, selectedDockForNewBooking, existingReservation]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -120,7 +123,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
     if (date && isValid(date)) {
       setFormData(prev => {
         const newFormData = { ...prev, [fieldName]: date };
-        if (fieldName === 'startDate' && isBefore(newFormData.endDate, date)) {
+        if (fieldName === 'startDate' && newFormData.endDate && isBefore(newFormData.endDate, date)) {
           newFormData.endDate = addDays(date, 1);
         }
         return newFormData;
@@ -129,11 +132,13 @@ const BookingModal: React.FC<BookingModalProps> = ({
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); 
+    e.preventDefault();
     setIsSubmitting(true);
     setSubmitError(null);
+    console.log("handleSubmit called. isViewOrEditMode:", isViewOrEditMode, "isEditing:", isEditing, "Form Data:", formData);
 
-    if (isBefore(formData.endDate, formData.startDate)) {
+
+    if (formData.startDate && formData.endDate && isBefore(formData.endDate, formData.startDate)) {
         setSubmitError("End date cannot be before start date.");
         setIsSubmitting(false);
         return;
@@ -146,15 +151,14 @@ const BookingModal: React.FC<BookingModalProps> = ({
         return;
     }
 
-    const proposedDateInterval = { start: formData.startDate, end: formData.endDate };
-    if (isValid(proposedDateInterval.start) && isValid(proposedDateInterval.end)) {
-        const daysInProposedInterval = eachDayOfInterval(proposedDateInterval);
+    if (formData.startDate && formData.endDate && isValid(formData.startDate) && isValid(formData.endDate)) {
+        const daysInProposedInterval = eachDayOfInterval({ start: formData.startDate, end: formData.endDate });
         for (const dayToCheck of daysInProposedInterval) {
             const conflictingReservation = getReservationOnDateExcludingCurrent(
                 dayToCheck,
                 dockIdForOperation,
                 allReservations,
-                existingReservation?.id 
+                existingReservation?.id
             );
             if (conflictingReservation) {
                 setSubmitError(`Date conflict: Dock ${dockIdForOperation} is already booked on ${format(dayToCheck, "PPP")} by ${conflictingReservation.guest_name}.`);
@@ -168,8 +172,8 @@ const BookingModal: React.FC<BookingModalProps> = ({
         return;
     }
 
-    if (isViewOrEditMode && isEditing) { 
-      if (!existingReservation || !existingReservation.id) { 
+    if (isViewOrEditMode && isEditing) {
+      if (!existingReservation || !existingReservation.id) {
         setSubmitError("No reservation ID found to update.");
         setIsSubmitting(false);
         return;
@@ -191,18 +195,18 @@ const BookingModal: React.FC<BookingModalProps> = ({
         .from('reservations')
         .update(reservationToUpdate)
         .eq('id', existingReservation.id)
-        .select(); 
+        .select();
       setIsSubmitting(false);
       if (error) {
         console.error('Supabase error updating reservation:', error);
         setSubmitError(`Failed to update reservation: ${error.message}.`);
       } else {
         console.log('Reservation updated successfully in Supabase:', data);
-        setIsEditing(false); 
-        onBookingSuccess();  
-        onClose();           
+        setIsEditing(false);
+        onBookingSuccess();
+        onClose();
       }
-    } else if (!isViewOrEditMode) { 
+    } else if (!isViewOrEditMode) {
       const reservationToInsert = {
         dock_id: dockIdForOperation,
         start_date: format(formData.startDate, 'yyyy-MM-dd'),
@@ -224,75 +228,68 @@ const BookingModal: React.FC<BookingModalProps> = ({
         setSubmitError(`Failed to save new reservation: ${insertError.message}.`);
       } else {
         console.log('New reservation saved successfully to Supabase!');
-        onBookingSuccess(); 
-        onClose();          
+        onBookingSuccess();
+        onClose();
       }
     } else {
+      console.log("handleSubmit: Neither edit nor new booking mode. Closing.");
       setIsSubmitting(false);
-      onClose();
+      onClose(); // Should not really happen if buttons are correctly enabling/disabling states
     }
   };
-  
+
   const handleCloseDialog = () => {
-    setIsEditing(false); 
+    console.log("handleCloseDialog called");
+    setIsEditing(false);
     onClose();
   };
 
   const handleEditClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault(); 
+    event.preventDefault();
     console.log("handleEditClick CALLED - setting isEditing to true");
     setIsEditing(true);
   };
 
   const handleCancelEditClick = () => {
+    console.log("handleCancelEditClick called");
     setIsEditing(false);
     if (existingReservation) {
-      setFormData(createFormState(null, existingReservation));
+      setFormData(createFormState(null, existingReservation)); // Reset form to original existing reservation
     }
+    setSubmitError(null); // Clear any errors
   };
 
-  // NEW: Handler for "Cancel Reservation" button
   const handleCancelReservation = async () => {
     if (!existingReservation || !existingReservation.id) {
       setSubmitError("No reservation selected to cancel.");
       return;
     }
-
     const confirmed = window.confirm(
       `Are you sure you want to cancel the reservation for ${existingReservation.guest_name} on Dock ${existingReservation.dock_id} (ID: ${existingReservation.id})? This action cannot be undone.`
     );
-    if (!confirmed) {
-      return;
-    }
-
+    if (!confirmed) return;
     setIsSubmitting(true);
     setSubmitError(null);
-
-    console.log('Attempting to DELETE reservation from Supabase (ID:', existingReservation.id, ')');
     const { error } = await supabase
       .from('reservations')
       .delete()
       .eq('id', existingReservation.id);
-
     setIsSubmitting(false);
-
     if (error) {
-      console.error('Supabase error deleting reservation:', error);
       setSubmitError(`Failed to cancel reservation: ${error.message}.`);
     } else {
-      console.log('Reservation cancelled successfully from Supabase!');
-      onBookingSuccess(); 
-      onClose();          
+      onBookingSuccess();
+      onClose();
     }
   };
 
   if (!isOpen) return null;
-  
+
   const displayDockId = existingReservation?.dock_id || selectedDockForNewBooking?.dockId || "N/A";
-  const dialogTitle = isViewOrEditMode 
-    ? (isEditing ? `Edit Reservation - Dock ${displayDockId}` : `View Reservation - Dock ${displayDockId}`) 
+  const dialogTitle = isViewOrEditMode
+    ? (isEditing ? `Edit Reservation - Dock ${displayDockId}` : `View Reservation - Dock ${displayDockId}`)
     : `Book Dock ${displayDockId}`;
-  
+
   let dialogDescriptionText = `New reservation for Dock ${displayDockId}`;
   if (isViewOrEditMode && formData.startDate && isValid(formData.startDate)) {
     dialogDescriptionText = `Details for reservation starting ${format(formData.startDate, "PPP")}`;
@@ -302,19 +299,19 @@ const BookingModal: React.FC<BookingModalProps> = ({
   } else if (!isViewOrEditMode && formData.startDate && isValid(formData.startDate)) {
     dialogDescriptionText = `New reservation for Dock ${displayDockId} starting on ${format(formData.startDate, "PPP")}`;
   }
-  
+
   const currentCalendarDefaultMonth = formData.startDate && isValid(formData.startDate) ? formData.startDate : new Date();
 
   return (
     <Dialog open={isOpen} onOpenChange={(openState) => { if (!openState) { handleCloseDialog(); } }}>
-      <DialogContent className="sm:max-w-lg">
+      {/* MODIFICATION: Added max-h-[85vh] (or 90vh) and overflow-y-auto for scrollability */}
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>{dialogDescriptionText}</DialogDescription>
         </DialogHeader>
-        
+
         <form id="booking-form" onSubmit={handleSubmit} className="space-y-4 py-4">
-          {/* Date Pickers */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="startDate-btn">Start Date</Label>
@@ -322,7 +319,12 @@ const BookingModal: React.FC<BookingModalProps> = ({
                 <Button id="startDate-btn" variant="outline" className={cn("w-full justify-start text-left font-normal mt-1", !formData.startDate && "text-muted-foreground")} disabled={isViewOrEditMode && !isEditing}>
                   <CalendarIcon className="mr-2 h-4 w-4" />{formData.startDate && isValid(formData.startDate) ? format(formData.startDate, "PPP") : <span>Pick a date</span>}
                 </Button></PopoverTrigger>
-                {(!isViewOrEditMode || isEditing) && <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.startDate} onSelect={(date) => handleDateChange('startDate', date)} initialFocus defaultMonth={currentCalendarDefaultMonth} /></PopoverContent>}
+                {(!isViewOrEditMode || isEditing) &&
+                  // MODIFICATION: Added z-[60] to PopoverContent
+                  <PopoverContent className="w-auto p-0 z-[60]" align="start">
+                    <Calendar mode="single" selected={formData.startDate} onSelect={(date) => handleDateChange('startDate', date)} initialFocus defaultMonth={currentCalendarDefaultMonth} />
+                  </PopoverContent>
+                }
               </Popover>
             </div>
             <div>
@@ -331,12 +333,16 @@ const BookingModal: React.FC<BookingModalProps> = ({
                 <Button id="endDate-btn" variant="outline" className={cn("w-full justify-start text-left font-normal mt-1", !formData.endDate && "text-muted-foreground")} disabled={isViewOrEditMode && !isEditing}>
                   <CalendarIcon className="mr-2 h-4 w-4" />{formData.endDate && isValid(formData.endDate) ? format(formData.endDate, "PPP") : <span>Pick a date</span>}
                 </Button></PopoverTrigger>
-                {(!isViewOrEditMode || isEditing) && <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.endDate} onSelect={(date) => handleDateChange('endDate', date)} disabled={(date) => isBefore(date, formData.startDate)} initialFocus defaultMonth={formData.startDate || currentCalendarDefaultMonth} /></PopoverContent>}
+                {(!isViewOrEditMode || isEditing) &&
+                  // MODIFICATION: Added z-[60] to PopoverContent
+                  <PopoverContent className="w-auto p-0 z-[60]" align="start">
+                    <Calendar mode="single" selected={formData.endDate} onSelect={(date) => handleDateChange('endDate', date)} disabled={(date) => formData.startDate && isValid(formData.startDate) ? isBefore(date, formData.startDate) : false} initialFocus defaultMonth={formData.startDate || currentCalendarDefaultMonth} />
+                  </PopoverContent>
+                }
               </Popover>
             </div>
           </div>
 
-          {/* Other Form Fields */}
           <div><Label htmlFor="guestName">Guest Name</Label><Input id="guestName" name="guestName" value={formData.guestName} onChange={handleChange} className="mt-1" disabled={isViewOrEditMode && !isEditing} /></div>
           <div><Label htmlFor="boatType">Boat Type</Label><Input id="boatType" name="boatType" value={formData.boatType} onChange={handleChange} className="mt-1" disabled={isViewOrEditMode && !isEditing} /></div>
           <div className="grid grid-cols-2 gap-4">
@@ -356,28 +362,28 @@ const BookingModal: React.FC<BookingModalProps> = ({
           </div>
           <div><Label htmlFor="notes">Notes</Label><Textarea id="notes" name="notes" value={formData.notes} onChange={handleChange} className="mt-1" rows={3} disabled={isViewOrEditMode && !isEditing} /></div>
         </form>
-        
+
         {submitError && (<p className="text-sm text-red-500 p-2 bg-red-50 rounded-md my-2">{submitError}</p>)}
 
         <DialogFooter>
-          {isViewOrEditMode ? ( 
-            isEditing ? ( 
+          {isViewOrEditMode ? (
+            isEditing ? (
               <>
                 <Button type="button" variant="outline" onClick={handleCancelEditClick} disabled={isSubmitting}>Cancel Edit</Button>
                 <Button type="submit" form="booking-form" disabled={isSubmitting}>
                   {isSubmitting ? 'Saving Changes...' : 'Save Changes'}
                 </Button>
               </>
-            ) : ( // Just Viewing (not editing)
+            ) : (
               <>
-                <Button type="button" variant="destructive" onClick={handleCancelReservation} disabled={isSubmitting} className="mr-auto"> 
-                  Cancel Reservation 
+                <Button type="button" variant="destructive" onClick={handleCancelReservation} disabled={isSubmitting} className="mr-auto">
+                  Cancel Reservation
                 </Button>
-                <Button type="button" variant="outline" onClick={handleCloseDialog} className="ml-2">Close</Button> {/* Added ml-2 for spacing */}
+                <Button type="button" variant="outline" onClick={handleCloseDialog} className="ml-2">Close</Button>
                 <Button type="button" onClick={(e) => handleEditClick(e)}>Edit Reservation</Button>
               </>
             )
-          ) : ( 
+          ) : (
             <>
               <Button type="button" variant="outline" onClick={handleCloseDialog} disabled={isSubmitting}>Cancel</Button>
               <Button type="submit" form="booking-form" disabled={isSubmitting}>
